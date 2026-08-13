@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3a3128">
+<title>Nueva pestaña</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root{
+    --pad: clamp(12px, 4.6vw, 18px);
+    --tile: clamp(44px, 14.5vw, 56px);
+    --chip-bg: rgba(58, 53, 47, .62);
+    --txt: #fff;
+  }
+
+  html, body { height: 100%; }
+
+  body{
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #17130f;
+    color: var(--txt);
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ---------- Marco tipo móvil en pantallas grandes ---------- */
+  .phone{
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 393px;
+    max-height: 852px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+  }
+  @media (min-width: 480px) and (min-height: 700px){
+    body{ background: #0d0b09; }
+    .phone{
+      border-radius: 42px;
+      box-shadow: 0 0 0 10px #16130f, 0 0 0 12px #2c2621, 0 30px 70px rgba(0,0,0,.75);
+    }
+  }
+
+  /* ---------- Fondo ---------- */
+  .bg{
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+  }
+  .bg svg{ width: 100%; height: 100%; display: block; }
+
+  /* Foto real (fondo.jpg / fondo.png o la que sueltes sobre la página).
+     Si no existe, se ve el dibujo SVG de debajo. */
+  .photo{
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: center 42%;
+    display: none;
+  }
+  .photo.ready{ display: block; }
+
+  /* Degradados de legibilidad, como los que aplica Edge sobre el fondo */
+  .scrim{
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(to bottom, rgba(0,0,0,.34) 0, rgba(0,0,0,.10) 15%, rgba(0,0,0,0) 28%),
+      linear-gradient(to top,    rgba(0,0,0,.30) 0, rgba(0,0,0,.14) 22%, rgba(0,0,0,0) 46%);
+  }
+
+  /* Aviso al soltar una imagen */
+  .dropzone{
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: none;
+    place-items: center;
+    background: rgba(10,12,16,.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    padding: 32px;
+    line-height: 1.5;
+  }
+  .dropzone.on{ display: grid; }
+
+  /* ---------- Fila superior: perfil / tiempo / ajustes ---------- */
+  .topbar{
+    flex: 0 0 auto;
+    padding: 16px var(--pad) 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .avatar{
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: #1668dc;
+    display: grid; place-items: center;
+    flex: 0 0 auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  .weather{
+    display: flex; align-items: center; gap: 7px;
+    height: 34px;
+    padding: 0 14px 0 10px;
+    border-radius: 999px;
+    background: var(--chip-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .settings{
+    margin-left: auto;
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+  }
+
+  /* ---------- Zona central ---------- */
+  .stage{
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--pad);
+    min-height: 0;
+  }
+  /* Reparto vertical del recorte: buscador a media pantalla,
+     accesos directos debajo y aire por abajo */
+  .hueco-sup{ flex: 3 1 0; min-height: 0; }
+  .hueco-inf{ flex: 1 1 0; min-height: 0; }
+
+  .searchbar{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 54px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: rgba(46, 42, 38, .66);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: 0 6px 24px rgba(0,0,0,.28);
+    margin-bottom: 44px;
+  }
+  .searchbar .ph{
+    flex: 1 1 auto;
+    text-align: center;
+    font-size: clamp(13px, 4.3vw, 16.5px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: rgba(255,255,255,.95);
+  }
+
+  /* ---------- Accesos directos ---------- */
+  .shortcuts{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    row-gap: 18px;
+  }
+  .sc{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: var(--txt);
+  }
+  .sc .icon{
+    width: var(--tile); height: var(--tile);
+    border-radius: 14px;
+    display: grid; place-items: center;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 3px 10px rgba(0,0,0,.28);
+  }
+  .sc .icon.soft{
+    background: var(--chip-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: none;
+  }
+  .sc .label{
+    font-size: clamp(10px, 3.2vw, 12.5px);
+    line-height: 1.28;
+    text-align: center;
+    max-width: 78px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-shadow: 0 1px 4px rgba(0,0,0,.45);
+  }
+
+  /* Iconos de sitios */
+  .ico-pais{ background:#000; color:#fff; font-family: Georgia,"Times New Roman",serif; font-size: 34px; font-weight: 700; }
+  .ico-diario{ background:#fff; }
+  .ico-as{ background:#e30613; color:#fff; font-family: Georgia,"Times New Roman",serif; font-style: italic; font-weight: 700; font-size: 26px; letter-spacing:-1px; }
+  .ico-5d{ background:#f4efe4; color:#111; font-family: Georgia,"Times New Roman",serif; font-weight: 700; font-size: 27px; }
+  .ico-5d .badge{
+    position: absolute; top: 0; right: 0;
+    width: 20px; height: 20px;
+    background:#1d4ed8; color:#fff;
+    font-family: "Segoe UI", sans-serif; font-size: 10px; font-weight: 700; font-style: normal;
+    display: grid; place-items: center;
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+    padding-left: 6px; padding-bottom: 4px;
+  }
+  /* Icono traído del propio sitio: a sangre, como en Edge */
+  .icon.sitio{ background: #fff; }
+  .icon.sitio img{ width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ico-letra{ color:#fff; font-size: 24px; font-weight: 600; }
+
+  .casilla{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  .casilla input{
+    width: 18px; height: 18px;
+    accent-color: #1668dc;
+    flex: 0 0 auto;
+  }
+
+  /* ---------- Buscador funcional ---------- */
+  .searchbar input.ph{
+    background: none;
+    border: 0;
+    outline: 0;
+    font-family: inherit;
+    font-weight: 400;
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+  }
+  .searchbar input.ph::placeholder{ color: rgba(255,255,255,.95); opacity: 1; }
+  .searchbar input.ph::-webkit-search-cancel-button{ -webkit-appearance: none; }
+  .searchbar input.ph:focus{ text-align: left; }
+  .micro{
+    background: none; border: 0; padding: 0;
+    display: grid; place-items: center;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .micro.grabando svg{ filter: drop-shadow(0 0 6px #ff5b7a); }
+
+  /* ---------- Accesos: interacción ---------- */
+  .sc{ cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .sc .icon{ transition: transform .12s ease; }
+  .sc:active .icon{ transform: scale(.94); }
+
+  /* ---------- Hojas y diálogos ---------- */
+  .velo{
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: rgba(8,10,14,.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: none;
+  }
+  .velo.on{ display: block; }
+
+  .hoja{
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 21;
+    max-height: 88%;
+    overflow-y: auto;
+    background: rgba(38, 36, 34, .94);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border-radius: 20px 20px 0 0;
+    padding: 10px 18px calc(20px + env(safe-area-inset-bottom));
+    transform: translateY(102%);
+    transition: transform .22s ease;
+  }
+  .hoja.on{ transform: translateY(0); }
+  .hoja::before{
+    content: "";
+    display: block;
+    width: 38px; height: 4px;
+    margin: 0 auto 14px;
+    border-radius: 2px;
+    background: rgba(255,255,255,.3);
+  }
+  .hoja h2{ font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .hoja label{
+    display: block;
+    font-size: 12.5px;
+    color: rgba(255,255,255,.72);
+    margin: 14px 0 5px;
+  }
+  .hoja input[type=text],
+  .hoja input[type=url],
+  .hoja select{
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    font: inherit;
+    font-size: 15px;
+    outline: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .hoja select{
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 18px;
+    padding-right: 34px;
+  }
+  .hoja input:focus, .hoja select:focus{ border-color: rgba(120,180,255,.75); }
+  .hoja .pista{ font-size: 12px; color: rgba(255,255,255,.55); margin-top: 8px; line-height: 1.45; }
+
+  .acciones{ display: flex; gap: 10px; margin-top: 20px; }
+  .btn{
+    flex: 1 1 0;
+    height: 44px;
+    border: 0;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(255,255,255,.14);
+    cursor: pointer;
+  }
+  .btn.primario{ background: #1668dc; }
+  .btn.peligro{ background: rgba(200,64,64,.9); }
+  .btn:active{ filter: brightness(.86); }
+
+  .fila-lista{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+  }
+  .fila-lista .txt{ flex: 1 1 auto; min-width: 0; }
+  .fila-lista .txt b{ display: block; font-size: 14.5px; font-weight: 600; }
+  .fila-lista .txt small{
+    display: block;
+    font-size: 12px;
+    color: rgba(255,255,255,.55);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mini{ display: flex; gap: 7px; flex: 0 0 auto; }
+  .mini button{
+    background: rgba(255,255,255,.12);
+    border: 0; color: #fff;
+    border-radius: 8px;
+    padding: 7px 11px;
+    font: inherit; font-size: 13px;
+    cursor: pointer;
+  }
+
+  .aviso{
+    position: absolute;
+    left: 50%; bottom: 26px;
+    transform: translate(-50%, 14px);
+    z-index: 30;
+    max-width: 84%;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: rgba(20,22,26,.92);
+    font-size: 13.5px;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .aviso.on{ opacity: 1; transform: translate(-50%, 0); }
+
+  .weather{ cursor: pointer; }
+  .settings{ cursor: pointer; background: none; border: 0; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- ============ FONDO: Es Vedrà ============ -->
+  <div class="bg" aria-hidden="true">
+
+    <!-- Dibujo vectorial: se ve mientras no haya foto -->
+    <svg viewBox="0 0 393 852" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0"    stop-color="#5f93c4"/>
+          <stop offset=".35"  stop-color="#83aed1"/>
+          <stop offset=".72"  stop-color="#adc7d9"/>
+          <stop offset="1"    stop-color="#c9d6da"/>
+        </linearGradient>
+
+        <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0"    stop-color="#4a7cab"/>
+          <stop offset=".12"  stop-color="#33639b"/>
+          <stop offset=".45"  stop-color="#22508e"/>
+          <stop offset="1"    stop-color="#173f79"/>
+        </linearGradient>
+
+        <linearGradient id="rockLight" x1=".15" y1="0" x2=".9" y2="1">
+          <stop offset="0"   stop-color="#a49b8b"/>
+          <stop offset=".45" stop-color="#847d6d"/>
+          <stop offset="1"   stop-color="#5d5849"/>
+        </linearGradient>
+        <linearGradient id="rockDark" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0"   stop-color="#6f6a59"/>
+          <stop offset="1"   stop-color="#474334"/>
+        </linearGradient>
+
+        <linearGradient id="scrub" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0"   stop-color="#5c7440"/>
+          <stop offset=".55" stop-color="#405c31"/>
+          <stop offset="1"   stop-color="#2a3f22"/>
+        </linearGradient>
+
+        <linearGradient id="fgRock" x1=".1" y1="0" x2=".8" y2="1">
+          <stop offset="0"   stop-color="#d8cbaf"/>
+          <stop offset=".45" stop-color="#b3a184"/>
+          <stop offset="1"   stop-color="#8a7960"/>
+        </linearGradient>
+
+        <filter id="rough" x="-15%" y="-15%" width="130%" height="130%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="3" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+
+        <filter id="leafy" x="-15%" y="-15%" width="130%" height="130%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="5" seed="11" result="n"/>
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="22" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+
+        <filter id="soft"><feGaussianBlur stdDeviation="3"/></filter>
+        <filter id="soft6"><feGaussianBlur stdDeviation="7"/></filter>
+        <filter id="soft12"><feGaussianBlur stdDeviation="12"/></filter>
+      </defs>
+
+      <!-- Cielo -->
+      <rect width="393" height="306" fill="url(#sky)"/>
+
+      <!-- Cúmulos teñidos de rosa -->
+      <g filter="url(#soft)">
+        <g opacity=".9">
+          <ellipse cx="60"  cy="46"  rx="52" ry="17" fill="#c9adbe"/>
+          <ellipse cx="96"  cy="38"  rx="34" ry="16" fill="#dcc2cb"/>
+          <ellipse cx="150" cy="52"  rx="46" ry="14" fill="#b79cb2"/>
+          <ellipse cx="272" cy="30"  rx="60" ry="16" fill="#c8adc0"/>
+          <ellipse cx="330" cy="44"  rx="52" ry="14" fill="#dcc4cd"/>
+        </g>
+        <g opacity=".85">
+          <ellipse cx="120" cy="112" rx="58" ry="15" fill="#c6aabb"/>
+          <ellipse cx="168" cy="104" rx="34" ry="14" fill="#e2cad2"/>
+          <ellipse cx="286" cy="126" rx="66" ry="17" fill="#bda3b6"/>
+          <ellipse cx="336" cy="118" rx="40" ry="13" fill="#e0c8d0"/>
+          <ellipse cx="34"  cy="132" rx="46" ry="12" fill="#cbb0c0"/>
+        </g>
+        <g opacity=".8">
+          <ellipse cx="90"  cy="186" rx="66" ry="12" fill="#cdb4c1"/>
+          <ellipse cx="228" cy="176" rx="74" ry="13" fill="#c4abbb"/>
+          <ellipse cx="340" cy="192" rx="58" ry="11" fill="#dbc3ca"/>
+          <ellipse cx="160" cy="212" rx="54" ry="9"  fill="#d9c2c8"/>
+        </g>
+        <g opacity=".6">
+          <ellipse cx="60"  cy="246" rx="70" ry="8" fill="#dcc8ca"/>
+          <ellipse cx="250" cy="252" rx="90" ry="8" fill="#d7c2c6"/>
+          <ellipse cx="360" cy="238" rx="50" ry="7" fill="#e6d2d2"/>
+        </g>
+      </g>
+      <!-- bruma sobre el horizonte -->
+      <rect y="262" width="393" height="46" fill="#cdd8dd" opacity=".55" filter="url(#soft6)"/>
+
+      <!-- Mar -->
+      <rect y="304" width="393" height="330" fill="url(#sea)"/>
+      <g opacity=".22" filter="url(#soft)">
+        <rect x="0"   y="316" width="393" height="3" fill="#9fc2dc"/>
+        <rect x="30"  y="338" width="340" height="2" fill="#8fb6d6"/>
+        <rect x="0"   y="366" width="393" height="3" fill="#7ba7cd"/>
+        <rect x="60"  y="402" width="333" height="2" fill="#6d9ac4"/>
+        <rect x="0"   y="452" width="393" height="3" fill="#5f8dbb"/>
+      </g>
+      <!-- reflejo suave del cielo -->
+      <ellipse cx="230" cy="330" rx="220" ry="26" fill="#a8c6de" opacity=".28" filter="url(#soft12)"/>
+
+      <!-- Es Vedrà: macizo principal con doble cima -->
+      <g filter="url(#rough)">
+        <path fill="url(#rockLight)" d="M196 306 L204 268 L214 240 L222 214 L232 196 L242 182 L250 190 L258 178 L268 190 L276 208 L286 232 L298 254 L312 274 L330 292 L344 306 Z"/>
+        <path fill="url(#rockDark)" opacity=".75" d="M258 178 L268 190 L276 208 L286 232 L298 254 L312 274 L330 292 L344 306 L262 306 L254 236 Z"/>
+        <path fill="#cbc2ae" opacity=".38" d="M232 196 L242 182 L250 190 L252 216 L238 232 L226 216 Z"/>
+        <path fill="#3d3a2c" opacity=".42" d="M204 268 L214 240 L224 258 L216 288 L196 302 Z"/>
+        <!-- ladera vegetada al pie -->
+        <path fill="#5d6142" opacity=".75" d="M262 282 C 292 272, 322 288, 350 306 L262 306 Z"/>
+      </g>
+
+      <!-- Es Vedranell y roquedos delanteros -->
+      <g filter="url(#rough)">
+        <path fill="#6d6a58" d="M118 306 C 124 288, 138 280, 152 284 C 164 288, 170 298, 172 306 Z"/>
+        <path fill="#7b7765" d="M176 306 L186 288 L196 276 L206 288 L214 272 L224 288 L234 300 L240 306 Z"/>
+        <path fill="#4b4838" opacity=".5" d="M186 288 L196 276 L200 296 L184 306 L176 306 Z"/>
+        <path fill="#8d8977" opacity=".9" d="M348 300 L358 292 L368 298 L372 306 L348 306 Z"/>
+      </g>
+      <!-- espuma / base difusa -->
+      <rect y="298" width="393" height="16" fill="#cfdde6" opacity=".35" filter="url(#soft6)"/>
+
+      <!-- Acantilado oscuro del borde izquierdo -->
+      <g filter="url(#rough)">
+        <path fill="#4a463a" d="M-20 402 L 18 396 L 44 424 L 52 470 L 46 540 L 30 604 L -20 640 Z"/>
+        <path fill="#2f2c24" opacity=".6" d="M-20 470 L 22 462 L 40 520 L 28 604 L -20 640 Z"/>
+      </g>
+
+      <!-- Matorral en primer plano -->
+      <g filter="url(#leafy)">
+        <path fill="url(#scrub)" d="M30 748 C 74 692, 128 670, 180 680 C 232 690, 268 672, 302 702 C 332 730, 338 782, 322 828 L 50 840 Z"/>
+        <path fill="#33502a" opacity=".9" d="M50 788 C 94 746, 148 738, 196 754 C 242 770, 278 760, 304 792 L 302 852 L 52 854 Z"/>
+        <path fill="#24391e" opacity=".85" d="M60 828 C 116 796, 202 796, 302 826 L 302 872 L 60 872 Z"/>
+      </g>
+
+      <!-- Ramas secas -->
+      <g stroke="#c3b294" stroke-linecap="round" fill="none" opacity=".75">
+        <path d="M186 712 C 206 684, 226 672, 240 654" stroke-width="2.2"/>
+        <path d="M206 692 C 222 692, 236 682, 250 674" stroke-width="1.6"/>
+        <path d="M238 736 C 262 714, 282 706, 300 688" stroke-width="2"/>
+        <path d="M262 718 C 278 722, 290 714, 304 708" stroke-width="1.4"/>
+        <path d="M110 760 C 130 736, 148 728, 162 710" stroke-width="1.8"/>
+        <path d="M282 764 C 306 746, 322 742, 340 728" stroke-width="1.8"/>
+      </g>
+
+      <!-- Roca caliza clara del primer plano -->
+      <g filter="url(#rough)">
+        <path fill="url(#fgRock)" d="M262 780 L 300 744 L 340 730 L 393 742 L 393 872 L 240 872 Z"/>
+        <path fill="#8e7f66" opacity=".55" d="M300 744 L 340 730 L 348 762 L 306 776 Z"/>
+        <path fill="#efe3c8" opacity=".35" d="M340 730 L 393 742 L 393 776 L 350 764 Z"/>
+        <!-- suelo de tierra y grava -->
+        <path fill="#c0ad8c" d="M-20 800 C 60 776, 160 782, 262 792 C 320 798, 360 812, 413 806 L 413 872 L -20 872 Z"/>
+        <path fill="#9b8a6c" opacity=".55" d="M-20 838 C 80 820, 190 830, 300 842 C 350 848, 380 852, 413 848 L 413 872 L -20 872 Z"/>
+      </g>
+      <g fill="#7d6f56" opacity=".5">
+        <circle cx="60"  cy="826" r="3"/><circle cx="108" cy="840" r="2.2"/>
+        <circle cx="150" cy="820" r="2.6"/><circle cx="205" cy="838" r="2"/>
+        <circle cx="34"  cy="848" r="2.4"/><circle cx="250" cy="826" r="2.2"/>
+      </g>
+    </svg>
+
+    <!-- Foto real, si está disponible -->
+    <img class="photo" id="photo" alt="">
+
+    <!-- Degradados para que el texto blanco se lea -->
+    <div class="scrim"></div>
+  </div>
+
+  <!-- Suelta una imagen sobre la página para usarla de fondo -->
+  <div class="dropzone" id="dropzone">Suelta la foto para usarla como fondo</div>
+
+  <!-- ============ FILA SUPERIOR ============ -->
+  <div class="topbar">
+    <div class="avatar" role="img" aria-label="Perfil">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6v1H4v-1Z"/>
+      </svg>
+    </div>
+
+    <button class="weather" id="tiempo" type="button" aria-label="Configurar el tiempo">
+      <svg width="19" height="19" viewBox="0 0 20 20" aria-hidden="true">
+        <defs>
+          <linearGradient id="sol" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffd15c"/>
+            <stop offset="1" stop-color="#f0a12e"/>
+          </linearGradient>
+        </defs>
+        <circle cx="10" cy="10" r="8" fill="url(#sol)"/>
+      </svg>
+      <span id="grados">25°C</span>
+    </button>
+
+    <button class="settings" id="ajustes" type="button" aria-label="Configurar">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+        <path d="M3 8h5M12 8h9M3 16h11M18 16h3"/>
+        <circle cx="10" cy="8" r="2.3" fill="none"/>
+        <circle cx="16" cy="16" r="2.3" fill="none"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ============ CENTRO ============ -->
+  <div class="stage">
+
+    <div class="hueco-sup"></div>
+
+    <!-- Buscador -->
+    <form class="searchbar" id="buscador" role="search" autocomplete="off">
+      <!-- Copilot -->
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+        <defs>
+          <linearGradient id="cp1" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#0f9bd7"/><stop offset=".5" stop-color="#38b6e8"/><stop offset="1" stop-color="#7ee0c6"/>
+          </linearGradient>
+          <linearGradient id="cp2" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#f5a623"/><stop offset=".45" stop-color="#ef5f8a"/><stop offset="1" stop-color="#b14ae0"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#cp1)" d="M4 21c0-6 3.4-11 9-11 3.6 0 5.6 2 6.8 5.2l-4.4.9C14.7 14.3 13.7 13.6 12.6 13.6 10 13.6 8.6 16.6 8.6 20c0 2.6-1 4.4-3 4.4C4.6 24.4 4 23 4 21Z"/>
+        <path fill="url(#cp2)" d="M28 13c0 6-3.6 11.4-9.2 11.4-3.7 0-5.9-2.2-7.1-5.5l4.5-.8c.6 1.6 1.5 2.4 2.7 2.4 2.7 0 4.1-3.1 4.1-6.5 0-2.6 1.1-4.3 3.1-4.3 1.1 0 1.9 1.3 1.9 3.3Z"/>
+      </svg>
+
+      <input class="ph" id="consulta" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Buscar o preguntar algo" aria-label="Buscar o preguntar algo">
+
+      <button class="micro" id="micro" type="button" aria-label="Buscar por voz">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+          <rect x="9" y="2" width="6" height="12" rx="3"/>
+          <path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+          <path d="M12 18v4" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </form>
+
+    <!-- Accesos directos (se generan desde los datos guardados) -->
+    <div class="shortcuts" id="accesos"></div>
+
+    <div class="hueco-inf"></div>
+  </div>
+
+  <!-- ============ CONFIGURACIÓN ============ -->
+  <div class="velo" id="velo"></div>
+
+  <!-- Ajustes generales -->
+  <div class="hoja" id="hoja-ajustes">
+    <h2>Ajustes</h2>
+
+    <label for="motor">Buscador</label>
+    <select id="motor">
+      <option value="google">Google</option>
+      <option value="bing">Bing</option>
+      <option value="ddg">DuckDuckGo</option>
+      <option value="ecosia">Ecosia</option>
+      <option value="brave">Brave Search</option>
+    </select>
+
+    <label for="ciudad">Ciudad para el tiempo</label>
+    <input type="text" id="ciudad" placeholder="Ibiza" autocomplete="off">
+    <p class="pista">Se consulta a Open-Meteo, que es gratis y no pide clave. Déjalo vacío y se usa tu ubicación, si le das permiso al navegador.</p>
+
+    <label>Fondo</label>
+    <div class="acciones" style="margin-top:0">
+      <button class="btn" id="elegir-fondo" type="button">Elegir imagen</button>
+      <button class="btn" id="quitar-fondo" type="button">Quitar</button>
+    </div>
+    <input type="file" id="archivo-fondo" accept="image/*" hidden>
+    <p class="pista">También puedes arrastrar una imagen sobre la página, o dejar un <b>fondo.jpg</b> junto a este archivo.</p>
+
+    <label>Accesos directos</label>
+    <label class="casilla" for="iconos-externos">
+      <input type="checkbox" id="iconos-externos">
+      <span>Buscar el icono en Google cuando la web no lo publique</span>
+    </label>
+    <p class="pista">Los iconos se piden a cada web directamente. Algunas, como Cinco Días, no publican ninguno en una ruta accesible; si activas esto, para esos casos se le pedirá a Google, lo que supone enviarle el dominio.</p>
+    <div id="lista-accesos"></div>
+
+    <div class="acciones">
+      <button class="btn" id="restaurar" type="button">Restaurar</button>
+      <button class="btn primario" id="cerrar-ajustes" type="button">Hecho</button>
+    </div>
+  </div>
+
+  <!-- Alta y edición de un acceso -->
+  <div class="hoja" id="hoja-acceso">
+    <h2 id="titulo-acceso">Nuevo acceso directo</h2>
+
+    <label for="nombre-acceso">Nombre</label>
+    <input type="text" id="nombre-acceso" placeholder="EL PAÍS" autocomplete="off">
+
+    <label for="url-acceso">Dirección</label>
+    <input type="url" id="url-acceso" placeholder="elpais.com" autocomplete="off" inputmode="url">
+
+    <div class="acciones">
+      <button class="btn" id="cancelar-acceso" type="button">Cancelar</button>
+      <button class="btn primario" id="guardar-acceso" type="button">Guardar</button>
+    </div>
+    <div class="acciones" id="zona-borrar" hidden>
+      <button class="btn peligro" id="borrar-acceso" type="button">Eliminar acceso</button>
+    </div>
+  </div>
+
+  <div class="aviso" id="aviso"></div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* =========================================================
+     1. Estado guardado
+     ========================================================= */
+  var CLAVE_CFG = 'inicioCfg';
+  var CLAVE_FONDO = 'inicioFondo';
+
+  var ACCESOS_INICIALES = [
+    { nombre: 'EL PAÍS: el periódico global',      url: 'https://elpais.com',              icono: 'pais' },
+    { nombre: 'elDiario.es - Noticias de actualidad', url: 'https://www.eldiario.es',      icono: 'diario' },
+    { nombre: 'AS.com',                            url: 'https://as.com',                  icono: 'as' },
+    { nombre: 'Cinco Días: economía y empresas',   url: 'https://cincodias.elpais.com',    icono: '5d' },
+    { nombre: 'Pestañas recientes',                url: '',                                icono: 'pestanas' },
+    { nombre: 'Favoritos',                         url: '',                                icono: 'favoritos' },
+    { nombre: 'Drop',                              url: '',                                icono: 'drop' }
+  ];
+
+  var cfg = {
+    motor: 'google',
+    ciudad: '',
+    grados: null,
+    codigo: null,
+    iconosExternos: false,
+    accesos: ACCESOS_INICIALES.slice()
+  };
+
+  function leer(clave) {
+    try { return localStorage.getItem(clave); } catch (e) { return null; }
+  }
+  function escribir(clave, valor) {
+    try { localStorage.setItem(clave, valor); return true; }
+    catch (e) { return false; }
+  }
+
+  (function cargarCfg() {
+    var crudo = leer(CLAVE_CFG);
+    if (!crudo) return;
+    try {
+      var g = JSON.parse(crudo);
+      if (g.motor) cfg.motor = g.motor;
+      if (typeof g.ciudad === 'string') cfg.ciudad = g.ciudad;
+      if (typeof g.grados === 'number') cfg.grados = g.grados;
+      if (typeof g.codigo === 'number') cfg.codigo = g.codigo;
+      if (typeof g.iconosExternos === 'boolean') cfg.iconosExternos = g.iconosExternos;
+      if (Array.isArray(g.accesos)) cfg.accesos = g.accesos;
+    } catch (e) { /* configuración ilegible: se quedan los valores por defecto */ }
+  })();
+
+  function guardarCfg() {
+    if (!escribir(CLAVE_CFG, JSON.stringify(cfg))) {
+      avisar('No se pudo guardar: el navegador bloquea el almacenamiento aquí.');
+    }
+  }
+
+  /* =========================================================
+     2. Avisos
+     ========================================================= */
+  var aviso = $('aviso'), relojAviso;
+  function avisar(texto) {
+    aviso.textContent = texto;
+    aviso.classList.add('on');
+    clearTimeout(relojAviso);
+    relojAviso = setTimeout(function () { aviso.classList.remove('on'); }, 3200);
+  }
+
+  /* =========================================================
+     3. Buscador
+     ========================================================= */
+  var MOTORES = {
+    google: 'https://www.google.com/search?q=',
+    bing:   'https://www.bing.com/search?q=',
+    ddg:    'https://duckduckgo.com/?q=',
+    ecosia: 'https://www.ecosia.org/search?q=',
+    brave:  'https://search.brave.com/search?q='
+  };
+
+  // Distingue "elpais.com" o "localhost:3000" de una búsqueda normal
+  function pareceDireccion(t) {
+    if (/\s/.test(t)) return false;
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) return true;
+    if (/^localhost(:\d+)?(\/.*)?$/i.test(t)) return true;
+    return /^[\w-]+(\.[\w-]+)+(:\d+)?(\/.*)?$/.test(t);
+  }
+
+  function normalizarUrl(t) {
+    return /^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : 'https://' + t;
+  }
+
+  $('buscador').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var t = $('consulta').value.trim();
+    if (!t) return;
+    location.href = pareceDireccion(t)
+      ? normalizarUrl(t)
+      : MOTORES[cfg.motor] + encodeURIComponent(t);
+  });
+
+  // Dictado: existe en Chrome y Edge; Firefox no lo trae
+  $('micro').addEventListener('click', function () {
+    var Voz = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Voz) { avisar('Este navegador no admite el dictado por voz.'); return; }
+    var r = new Voz();
+    r.lang = 'es-ES';
+    r.interimResults = false;
+    this.classList.add('grabando');
+    var boton = this;
+    r.onresult = function (ev) {
+      $('consulta').value = ev.results[0][0].transcript;
+      $('buscador').dispatchEvent(new Event('submit'));
+    };
+    r.onerror = function () { avisar('No se pudo escuchar el micrófono.'); };
+    r.onend = function () { boton.classList.remove('grabando'); };
+    r.start();
+  });
+
+  /* =========================================================
+     4. Accesos directos
+     ========================================================= */
+  var ICONOS = {
+    pais: '<div class="icon ico-pais">E</div>',
+    diario: '<div class="icon ico-diario"><svg width="46" height="46" viewBox="0 0 48 48" aria-hidden="true">' +
+            '<circle cx="24" cy="24" r="20" fill="#0b5b8f"/><circle cx="24" cy="24" r="12.5" fill="#fff"/>' +
+            '<circle cx="24" cy="24" r="7" fill="#0b5b8f"/><rect x="21" y="4" width="6" height="16" rx="3" fill="#fff"/></svg></div>',
+    as: '<div class="icon ico-as">as</div>',
+    '5d': '<div class="icon ico-5d">5D<span class="badge">45</span></div>',
+    pestanas: '<div class="icon soft"><svg width="28" height="28" viewBox="0 0 24 24" fill="#4aa3ff" aria-hidden="true">' +
+              '<rect x="2.5" y="4" width="11" height="14" rx="2.4"/><rect x="11" y="8" width="10.5" height="12" rx="2.4" fill="#7cc0ff"/></svg></div>',
+    favoritos: '<div class="icon soft"><svg width="28" height="28" viewBox="0 0 24 24" fill="#4aa3ff" aria-hidden="true">' +
+               '<path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5-5.8-3.05-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.6Z"/></svg></div>',
+    drop: '<div class="icon soft"><svg width="28" height="28" viewBox="0 0 24 24" fill="#4aa3ff" aria-hidden="true">' +
+          '<path d="M2.4 12 21.6 3.4 13 21.6l-2.3-7.3L2.4 12Z"/></svg></div>',
+    agregar: '<div class="icon soft"><svg width="30" height="30" viewBox="0 0 24 24" stroke="#fff" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+             '<path d="M12 5v14M5 12h14"/></svg></div>'
+  };
+
+  function escapar(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /* ---- Iconos traídos de cada web ----
+     Se prueban varias rutas habituales y se conserva la de más resolución.
+     El resultado se guarda para no repetir el sondeo en cada visita. */
+  var RUTAS_ICONO = [
+    '/apple-touch-icon.png',
+    '/apple-touch-icon-precomposed.png',
+    '/android-chrome-192x192.png',
+    '/favicon-96x96.png',
+    '/favicon.ico'
+  ];
+  var CADUCIDAD_ICONO = 30 * 24 * 3600 * 1000;   // un mes
+
+  function medirIcono(url) {
+    return new Promise(function (res) {
+      var img = new Image();
+      var reloj = setTimeout(function () { res(null); }, 6000);
+      img.onload = function () {
+        clearTimeout(reloj);
+        res(img.naturalWidth >= 32 ? { url: url, ancho: img.naturalWidth } : null);
+      };
+      img.onerror = function () { clearTimeout(reloj); res(null); };
+      img.src = url;
+    });
+  }
+
+  function resolverIcono(destino) {
+    var sitio;
+    try { sitio = new URL(destino); } catch (e) { return Promise.resolve(null); }
+
+    var propias = RUTAS_ICONO.map(function (r) { return sitio.origin + r; });
+
+    return Promise.all(propias.map(medirIcono)).then(function (hallados) {
+      var buenos = hallados.filter(Boolean).sort(function (a, b) { return b.ancho - a.ancho; });
+      if (buenos.length) return buenos[0].url;
+
+      // La web no publica ninguno en ruta accesible
+      if (!cfg.iconosExternos) return null;
+      var deGoogle = 'https://www.google.com/s2/favicons?sz=128&domain=' + encodeURIComponent(sitio.hostname);
+      return medirIcono(deGoogle).then(function (r) { return r ? r.url : null; });
+    });
+  }
+
+  function iconoDe(acceso) {
+    // 1) Icono real de la web, ya resuelto en una visita anterior
+    if (acceso.iconoUrl) {
+      return '<div class="icon sitio"><img alt="" src="' + escapar(acceso.iconoUrl) + '"></div>';
+    }
+    // 2) Mientras se resuelve (o si la web no publica ninguno), el dibujado
+    if (ICONOS[acceso.icono]) return ICONOS[acceso.icono];
+    // 3) Acceso propio sin icono: inicial sobre pastilla
+    var inicial = escapar((acceso.nombre || '?').trim().charAt(0).toUpperCase());
+    return '<div class="icon soft ico-letra">' + inicial + '</div>';
+  }
+
+  // Sondea los accesos cuyo icono falta o ha caducado y repinta al terminar
+  function refrescarIconos() {
+    var ahora = Date.now();
+    var pendientes = cfg.accesos.filter(function (a) {
+      return a.url && (!a.iconoUrl || !a.iconoFecha || ahora - a.iconoFecha > CADUCIDAD_ICONO);
+    });
+    if (!pendientes.length) return;
+
+    Promise.all(pendientes.map(function (a) {
+      return resolverIcono(a.url).then(function (url) {
+        a.iconoFecha = ahora;
+        if (url) a.iconoUrl = url;
+      });
+    })).then(function () {
+      guardarCfg();
+      pintarAccesos();
+    });
+  }
+
+  var rejilla = $('accesos');
+
+  function pintarAccesos() {
+    var html = '';
+    cfg.accesos.forEach(function (a, i) {
+      html += '<a class="sc" data-i="' + i + '" href="' + (a.url ? escapar(a.url) : '#') + '">' +
+                iconoDe(a) +
+                '<span class="label">' + escapar(a.nombre) + '</span>' +
+              '</a>';
+    });
+    html += '<a class="sc" data-nuevo="1" href="#">' + ICONOS.agregar + '<span class="label">Agregar</span></a>';
+    rejilla.innerHTML = html;
+  }
+
+  // Un toque abre; mantener pulsado (o botón derecho) edita
+  var pulsacion = null;
+
+  rejilla.addEventListener('click', function (e) {
+    var sc = e.target.closest('.sc');
+    if (!sc) return;
+    e.preventDefault();
+
+    if (sc.dataset.nuevo) { abrirAcceso(null); return; }
+
+    var a = cfg.accesos[+sc.dataset.i];
+    if (!a) return;
+    if (!a.url) {
+      // Los tres iconos de Edge no tienen equivalente en una web: se pueden reutilizar
+      abrirAcceso(+sc.dataset.i);
+      avisar('«' + a.nombre + '» es una función interna de Edge. Dale una dirección y será tuyo.');
+      return;
+    }
+    location.href = a.url;
+  });
+
+  rejilla.addEventListener('contextmenu', function (e) {
+    var sc = e.target.closest('.sc');
+    if (!sc || sc.dataset.nuevo) return;
+    e.preventDefault();
+    abrirAcceso(+sc.dataset.i);
+  });
+
+  rejilla.addEventListener('touchstart', function (e) {
+    var sc = e.target.closest('.sc');
+    if (!sc || sc.dataset.nuevo) return;
+    pulsacion = setTimeout(function () {
+      pulsacion = null;
+      abrirAcceso(+sc.dataset.i);
+    }, 600);
+  }, { passive: true });
+
+  ['touchend', 'touchmove', 'touchcancel'].forEach(function (ev) {
+    rejilla.addEventListener(ev, function () { clearTimeout(pulsacion); }, { passive: true });
+  });
+
+  /* ---- Hoja de alta y edición ---- */
+  var editando = null;
+
+  function abrirAcceso(i) {
+    editando = i;
+    var a = (i === null) ? { nombre: '', url: '' } : cfg.accesos[i];
+    $('titulo-acceso').textContent = (i === null) ? 'Nuevo acceso directo' : 'Editar acceso';
+    $('nombre-acceso').value = a.nombre;
+    $('url-acceso').value = a.url;
+    $('zona-borrar').hidden = (i === null);
+    abrirHoja('hoja-acceso');
+  }
+
+  $('guardar-acceso').addEventListener('click', function () {
+    var nombre = $('nombre-acceso').value.trim();
+    var url = $('url-acceso').value.trim();
+    if (!nombre) { avisar('Ponle un nombre.'); return; }
+    if (!url) { avisar('Falta la dirección.'); return; }
+    url = normalizarUrl(url);
+    try { new URL(url); } catch (e) { avisar('Esa dirección no es válida.'); return; }
+
+    if (editando === null) {
+      cfg.accesos.push({ nombre: nombre, url: url, icono: 'propio' });
+    } else {
+      var a = cfg.accesos[editando];
+      a.nombre = nombre;
+      if (a.url !== url) {
+        // Otra dirección, otro icono: se vuelve a sondear
+        a.icono = 'propio';
+        delete a.iconoUrl;
+        delete a.iconoFecha;
+      }
+      a.url = url;
+    }
+    guardarCfg();
+    pintarAccesos();
+    pintarLista();
+    cerrarHojas();
+    refrescarIconos();
+  });
+
+  $('borrar-acceso').addEventListener('click', function () {
+    if (editando === null) return;
+    cfg.accesos.splice(editando, 1);
+    guardarCfg();
+    pintarAccesos();
+    pintarLista();
+    cerrarHojas();
+  });
+
+  $('cancelar-acceso').addEventListener('click', cerrarHojas);
+
+  /* =========================================================
+     5. Hojas
+     ========================================================= */
+  function abrirHoja(id) {
+    cerrarHojas(true);
+    $('velo').classList.add('on');
+    $(id).classList.add('on');
+  }
+  function cerrarHojas(silencio) {
+    ['hoja-ajustes', 'hoja-acceso'].forEach(function (id) { $(id).classList.remove('on'); });
+    if (!silencio) $('velo').classList.remove('on');
+  }
+  $('velo').addEventListener('click', function () { cerrarHojas(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarHojas(); });
+
+  $('ajustes').addEventListener('click', function () {
+    $('motor').value = cfg.motor;
+    $('ciudad').value = cfg.ciudad;
+    $('iconos-externos').checked = cfg.iconosExternos;
+    pintarLista();
+    abrirHoja('hoja-ajustes');
+  });
+  $('cerrar-ajustes').addEventListener('click', cerrarHojas);
+
+  $('motor').addEventListener('change', function () {
+    cfg.motor = this.value;
+    guardarCfg();
+  });
+
+  $('iconos-externos').addEventListener('change', function () {
+    cfg.iconosExternos = this.checked;
+    if (this.checked) {
+      // Vuelve a sondear los que se quedaron sin icono propio
+      cfg.accesos.forEach(function (a) { if (!a.iconoUrl) delete a.iconoFecha; });
+    }
+    guardarCfg();
+    refrescarIconos();
+  });
+
+  // Si un icono guardado deja de existir, se cae al dibujado y se resondea
+  rejilla.addEventListener('error', function (e) {
+    if (e.target.tagName !== 'IMG') return;
+    var sc = e.target.closest('.sc');
+    if (!sc || sc.dataset.i === undefined) return;
+    var a = cfg.accesos[+sc.dataset.i];
+    if (!a) return;
+    delete a.iconoUrl;
+    delete a.iconoFecha;
+    guardarCfg();
+    pintarAccesos();
+  }, true);
+
+  $('ciudad').addEventListener('change', function () {
+    cfg.ciudad = this.value.trim();
+    guardarCfg();
+    cargarTiempo();
+  });
+
+  function pintarLista() {
+    var cont = $('lista-accesos');
+    cont.innerHTML = '';
+    cfg.accesos.forEach(function (a, i) {
+      var fila = document.createElement('div');
+      fila.className = 'fila-lista';
+      fila.innerHTML = '<div class="txt"><b>' + escapar(a.nombre) + '</b><small>' +
+                       escapar(a.url || 'sin dirección') + '</small></div>' +
+                       '<div class="mini"><button type="button" data-ed="' + i + '">Editar</button>' +
+                       '<button type="button" data-bo="' + i + '">Borrar</button></div>';
+      cont.appendChild(fila);
+    });
+    cont.onclick = function (e) {
+      var b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.ed !== undefined) { abrirAcceso(+b.dataset.ed); }
+      if (b.dataset.bo !== undefined) {
+        cfg.accesos.splice(+b.dataset.bo, 1);
+        guardarCfg();
+        pintarAccesos();
+        pintarLista();
+      }
+    };
+  }
+
+  $('restaurar').addEventListener('click', function () {
+    if (!confirm('¿Restaurar los accesos directos originales?')) return;
+    cfg.accesos = ACCESOS_INICIALES.slice();
+    guardarCfg();
+    pintarAccesos();
+    pintarLista();
+    avisar('Accesos restaurados.');
+  });
+
+  /* =========================================================
+     6. El tiempo (Open-Meteo, sin clave)
+     ========================================================= */
+  var GLIFOS = {
+    sol:    '<circle cx="10" cy="10" r="8" fill="url(#sol)"/>',
+    nubes:  '<circle cx="7.5" cy="8" r="5.5" fill="url(#sol)"/><ellipse cx="12" cy="13" rx="7" ry="4.6" fill="#e9edf2"/>',
+    lluvia: '<ellipse cx="10" cy="8.5" rx="7.5" ry="5" fill="#dfe5ec"/><g stroke="#7fc0ff" stroke-width="1.8" stroke-linecap="round"><path d="M6 15v2.5"/><path d="M10 15v3"/><path d="M14 15v2.5"/></g>',
+    nieve:  '<ellipse cx="10" cy="8.5" rx="7.5" ry="5" fill="#e6ecf3"/><g fill="#cfe6ff"><circle cx="6" cy="16" r="1.4"/><circle cx="10" cy="17.4" r="1.4"/><circle cx="14" cy="16" r="1.4"/></g>',
+    tormenta: '<ellipse cx="10" cy="8.5" rx="7.5" ry="5" fill="#cdd4dd"/><path d="M10.5 13l-3.5 5h3l-1 4 4.5-6h-3z" fill="#ffd15c"/>',
+    niebla: '<ellipse cx="10" cy="7.5" rx="7.5" ry="4.5" fill="#e2e8ee"/><g stroke="#dbe3ea" stroke-width="1.8" stroke-linecap="round"><path d="M3 14h14"/><path d="M5 17.5h11"/></g>'
+  };
+
+  function glifoDe(codigo) {
+    if (codigo === null || codigo === undefined) return GLIFOS.sol;
+    if (codigo === 0 || codigo === 1) return GLIFOS.sol;
+    if (codigo === 2 || codigo === 3) return GLIFOS.nubes;
+    if (codigo >= 45 && codigo <= 48) return GLIFOS.niebla;
+    if (codigo >= 71 && codigo <= 77) return GLIFOS.nieve;
+    if (codigo >= 85 && codigo <= 86) return GLIFOS.nieve;
+    if (codigo >= 95) return GLIFOS.tormenta;
+    if (codigo >= 51) return GLIFOS.lluvia;
+    return GLIFOS.sol;
+  }
+
+  function pintarTiempo() {
+    if (typeof cfg.grados === 'number') {
+      $('grados').textContent = Math.round(cfg.grados) + '°C';
+    }
+    var svg = document.querySelector('.weather svg');
+    var defs = svg.querySelector('defs').outerHTML;
+    svg.innerHTML = defs + glifoDe(cfg.codigo);
+  }
+
+  function pedirTiempo(lat, lon) {
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+          '&current=temperature_2m,weather_code&timezone=auto')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.current) throw new Error('sin datos');
+        cfg.grados = d.current.temperature_2m;
+        cfg.codigo = d.current.weather_code;
+        guardarCfg();
+        pintarTiempo();
+      })
+      .catch(function () { avisar('No se pudo consultar el tiempo.'); });
+  }
+
+  function cargarTiempo() {
+    if (cfg.ciudad) {
+      fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=es&format=json&name=' +
+            encodeURIComponent(cfg.ciudad))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.results || !d.results.length) { avisar('No encuentro esa ciudad.'); return; }
+          pedirTiempo(d.results[0].latitude, d.results[0].longitude);
+        })
+        .catch(function () { avisar('No se pudo buscar la ciudad.'); });
+      return;
+    }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      function (p) { pedirTiempo(p.coords.latitude.toFixed(3), p.coords.longitude.toFixed(3)); },
+      function () { /* sin permiso: se queda el último valor conocido */ },
+      { timeout: 8000, maximumAge: 900000 }
+    );
+  }
+
+  $('tiempo').addEventListener('click', function () {
+    $('motor').value = cfg.motor;
+    $('ciudad').value = cfg.ciudad;
+    pintarLista();
+    abrirHoja('hoja-ajustes');
+    $('ciudad').focus();
+  });
+
+  /* =========================================================
+     7. Fondo
+     ========================================================= */
+  var photo = $('photo');
+  var dropzone = $('dropzone');
+
+  function mostrarFondo(src) {
+    photo.src = src;
+    photo.classList.add('ready');
+  }
+
+  var guardado = leer(CLAVE_FONDO);
+  if (guardado) {
+    mostrarFondo(guardado);
+  } else {
+    var candidatos = ['fondo.jpg', 'fondo.jpeg', 'fondo.png', 'fondo.webp'];
+    (function probar(i) {
+      if (i >= candidatos.length) return;      // ninguno: se queda el dibujo SVG
+      var test = new Image();
+      test.onload = function () { mostrarFondo(candidatos[i]); };
+      test.onerror = function () { probar(i + 1); };
+      test.src = candidatos[i];
+    })(0);
+  }
+
+  // Reescala antes de guardar: localStorage no admite fotos de varios MB
+  function adoptarImagen(file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    var lector = new FileReader();
+    lector.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var escala = Math.min(1, 1400 / Math.max(img.width, img.height));
+        var lienzo = document.createElement('canvas');
+        lienzo.width = Math.round(img.width * escala);
+        lienzo.height = Math.round(img.height * escala);
+        lienzo.getContext('2d').drawImage(img, 0, 0, lienzo.width, lienzo.height);
+        var datos = lienzo.toDataURL('image/jpeg', 0.86);
+        mostrarFondo(datos);
+        if (!escribir(CLAVE_FONDO, datos)) avisar('Fondo puesto, pero no se pudo guardar para la próxima vez.');
+      };
+      img.src = lector.result;
+    };
+    lector.readAsDataURL(file);
+  }
+
+  $('elegir-fondo').addEventListener('click', function () { $('archivo-fondo').click(); });
+  $('archivo-fondo').addEventListener('change', function () {
+    adoptarImagen(this.files[0]);
+    cerrarHojas();
+  });
+  $('quitar-fondo').addEventListener('click', function () {
+    try { localStorage.removeItem(CLAVE_FONDO); } catch (e) {}
+    photo.classList.remove('ready');
+    photo.removeAttribute('src');
+    avisar('Fondo quitado.');
+  });
+
+  var arrastres = 0;
+  window.addEventListener('dragenter', function (e) {
+    e.preventDefault();
+    arrastres++;
+    dropzone.classList.add('on');
+  });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('dragleave', function () {
+    if (--arrastres <= 0) { arrastres = 0; dropzone.classList.remove('on'); }
+  });
+  window.addEventListener('drop', function (e) {
+    e.preventDefault();
+    arrastres = 0;
+    dropzone.classList.remove('on');
+    adoptarImagen(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
+  });
+
+  /* =========================================================
+     8. Arranque
+     ========================================================= */
+  pintarAccesos();
+  refrescarIconos();
+  pintarTiempo();
+  cargarTiempo();
+})();
+</script>
+
+</body>
+</html>
